@@ -404,6 +404,32 @@ def main():
     args = parser.parse_args()
     args_dict = vars(args)
 
+
+    if args.sender_address is None:
+        print('No sender address provided')
+        sys.exit(0)
+    if args.sender_name is None:
+        print('No from name provided')
+        sys.exit(0)
+    if args.smtp_port is None:
+        print('No mail port provided')
+        sys.exit(0)
+    if args.smtp_server is None:
+        print('No SMTP server provided')
+        sys.exit(0)
+    if args.smtp_username is None:
+        print('No SMTP server username provided')
+        sys.exit(0)
+    if args.smtp_password is None:
+        print('No SMTP server password provided')
+        sys.exit(0)
+    if args.rcpt_header is None:
+        print('No RCPT header provided')
+        sys.exit(0)
+    if args.recipients_file is None:
+        print('No recipients file provided')
+        sys.exit(0)
+
     c1 = Smbshakedown(args.sender_address, \
         args.sender_name, \
         args.smtp_port, \
