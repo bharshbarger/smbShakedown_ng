@@ -123,7 +123,7 @@ Recipients:     {9}\n').format(self.rc_file, self.sender_address, self.sender_na
 
 
     def smb_server(self):
-        smb_server_option = self.yes_no('Use a local Metasploit SMB capture server? (y/n): ')
+        smb_server_option = self.yes_no('Use a local Metasploit SMB capture server in a screen session called msf_shakedown? (y/n): ')
         
         if smb_server_option is True:
             rc_config = \
@@ -141,9 +141,13 @@ exploit -j -z'.format(self.get_internal_address())
                     rc_file.writelines(str(rc_config))
                     rc_file.close()
                 try:
-                    os.system('msfconsole -q -r {}'.format(self.rc_file))
-                    
+                    print('Starting screen -S "msf_shakedown" -d -m')
+                    os.system('screen -S "msf_shakedown" -d -m')
+                    print('Screen session started')
                     print('Running msfconsole -q -r {}'.format(self.rc_file))
+                    #os.system('msfconsole -q -r {}'.format(self.rc_file))
+                    os.system('screen -r "msf_shakedown" -X msfconsole -q -r {} $\n'.format(self.rc_file)) 
+                    
                 except Exception as e:
                     print('Error: {}'.format(e))
                     sys.exit(1)
