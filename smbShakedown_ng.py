@@ -197,14 +197,22 @@ exploit -j -z')
                 
 
     def write_file(self, content, filename):
-        with open(filename, 'w') as file:
-            file.writelines(content)
-            file.close()
+        try:
+            with open(filename, 'w') as file:
+                file.writelines(content)
+                file.close()
+        except Exception as e:
+            print(e)
+            sys.exit(1)
 
     def read_file(self, filename):
-        with open(filename, 'r') as file:
-            content = file.readlines()
-            return content
+        try:
+            with open(filename, 'r') as file:
+                content = file.readlines()
+                return content
+        except Exception as e:
+            print(e)
+            sys.exit(1)
 
     def craft_http_content(self):
         html = """<!DOCTYPE HTML>
