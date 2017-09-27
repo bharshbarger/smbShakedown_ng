@@ -78,33 +78,6 @@ class Smbshakedown(object):
             print(e)
         return s.getsockname()[0]
 
-    def check_args(self):
-
-        if self.sender_address is None:
-            print('No sender address provided')
-            sys.exit(0)
-        if self.sender_name is None:
-            print('No from name provided')
-            sys.exit(0)
-        if self.smtp_port is None:
-            print('No mail port provided')
-            sys.exit(0)
-        if self.smtp_server is None:
-            print('No SMTP server provided')
-            sys.exit(0)
-        if self.smtp_username is None:
-            print('No SMTP server username provided')
-            sys.exit(0)
-        if self.smtp_password is None:
-            print('No SMTP server password provided')
-            sys.exit(0)
-        if self.rcpt_header is None:
-            print('No RCPT header provided')
-            self.rcpt_header = 'staff@company.com'
-        if self.recipients_file is None:
-            print('No recipients file provided')
-            sys.exit(0)
-
     def prompts(self):
         self.smtp_password = getpass.getpass(r'Enter SMTP Server password: ')
 
@@ -420,13 +393,10 @@ def main():
     if args.smtp_username is None:
         print('No SMTP server username provided')
         sys.exit(0)
-    if args.smtp_password is None:
-        print('No SMTP server password provided')
-        sys.exit(0)
     if args.rcpt_header is None:
         print('No RCPT header provided')
         sys.exit(0)
-    if args.recipients_file is None:
+    if args.file is None:
         print('No recipients file provided')
         sys.exit(0)
 
@@ -444,7 +414,6 @@ def main():
 
     c1.get_external_ip()
     c1.prompts()
-    c1.check_args()
     c1.validate()
     c1.smb_server()
     c1.craft_http_content()
