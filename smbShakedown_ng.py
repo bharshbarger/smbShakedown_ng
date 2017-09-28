@@ -25,6 +25,7 @@ try:
     import urllib2
     import readline
     import requests
+    import signal
     from time import sleep
 except Exception as e:
     print(str(e))
@@ -59,8 +60,15 @@ class Smbshakedown(object):
         self.external_ip = self.get_external_ip().strip('\n')
         self.internal_ip = self.get_internal_address()
 
+        self.http_server_pid = None
+
+        #sigint and sigterm catch
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
         #verbosity boolean
         self.verbose = verbose
+
 
     def get_external_ip(self):
         try:
@@ -239,17 +247,31 @@ exploit -j -z')
 
         self.write_file(html, './index.html')
 
-    def sigterm_handler(self, signal, frame):
-        server_kill()
 
-    def sigint_handler(self, signal, frame):
+
+    def exit_gracefully(self, signal, frame):
         print('\nCaught Ctrl+C')
-        print('Press Enter to close')
-        server_kill()
+        if self.http_server_pid is not None:
+            try:
+                print('Trying to stop server process {}'.format(str(self.http_server_pid)))
+                os.kill(int(self.http_server_pid),9)
+            except Exception as e:
+                print(e)
+
+        print('Check remaining screen sessions')
+        proc = subprocess.Popen(["screen","-list"], stdout=subprocess.PIPE)
+        (out, err) = proc.communicate()
+        print('Screen sessions: {}'.format(out))
+
+        
+
+
+        sys.exit(1)
 
     def run_http_server(self):
         '''Starts Python's SimpleHTTPServer on specified port'''
         if self.image_server_port is not None:
+            print('Starting local http server on tcp/{}'.format(str(self.image_server_port)))
 
             addr = ("0.0.0.0", self.image_server_port)
             
@@ -276,25 +298,15 @@ exploit -j -z')
                 print(e)
 
             
-            self.server_pid = server_process.pid
-            print('Server running at PID: {}').format(self.server_pid)
+            self.http_server_pid = server_process.pid
+            print('Server running at PID: {}').format(self.http_server_pid)
 
-            return self.server_pid
-
-    def server_kill(self):
-        try:
-            # print('Trying to stop server process %s' % str(serverPid))
-            os.kill(int(self.server_pid),9)
-        except Exception as e:
-            print(e)
-
+            return self.http_server_pid
 
     def smtp_connection(self):
-
         recipients = self.read_file(self.recipients_file)
         msg_body = self.craft_message_body()
 
-        
         smtpserver = smtplib.SMTP(self.smtp_server, self.smtp_port)
         smtpserver.ehlo()
         smtpserver.starttls()
@@ -305,24 +317,23 @@ exploit -j -z')
         try:
             status = smtpserver.noop()[0]
             print("SMTP Server Status: ",status)
-            send_prompt = yes_no(self, "Connection successful, send mail now? (y/n): ")
-
+            send_prompt = yes_no("Connection successful, send mail now? (y/n): ")
 
             if send_prompt is True:
                 #from addr, to addr, msg
+                print(self.sender_address, recipients, msg_body)
                 smtpserver.sendmail(self.sender_address, recipients, msg_body)
                 print("Message(s) sent!")
                 smtpserver.quit()
-                return True
+
             else:
                 smtpserver.quit()
                 print("Ok no mail sent.")
-                return False
 
-        except:
-            status = -1
-            print("[Aborting]SMTP Server Status: ",status)
-        return True if status == 250 else False
+
+        except Exception as e:
+            print('Error: {}'.format(e))
+
 
 
 def main():
