@@ -171,16 +171,14 @@ exploit -j -z')
         print('TIP: Domain based link_tags help avoid the "JunkFolder".')
 
         if self.image_server_port is None:
-            image_server_addr = raw_input('Please enter a FQDN (no http://) or IP: ')
+            image_server_addr = raw_input('Please enter a FQDN (no http://) or IP where your server is: ')
         else:
             image_server_addr = self.external_ip
 
 
-
         link_tag_name = raw_input('Enter text for link_tag to be displayed[CLICK ME!]: ') or 'Click here'
 
-        link_tag = '<a href="http://{}:{}" target="_blank">{}'\
-        .format(image_server_addr,image_server_port,link_tag_name)+'</a>' 
+        link_tag = '<a href="http://{}:{}" target="_blank">{}'.format(image_server_addr,self.image_server_port,link_tag_name)+'</a>' 
 
  
         ### EDIT: Email Message Template Below ###
@@ -193,7 +191,7 @@ Subject: Thank you for all your help.
 
 Staff,
 <br>
-...
+Thanks for all your help!
 <br>
 {5}
 <br>
