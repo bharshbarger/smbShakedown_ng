@@ -265,6 +265,7 @@ sincerely,
 
     def run_http_server(self):
         '''Starts Python's SimpleHTTPServer on a specified port'''
+        #maybe just use subprocess.Popen to run simple server?
         if self.image_server_port is not None:
             print('Starting local http server on tcp/{}'.format(str(self.image_server_port)))
 
@@ -294,6 +295,7 @@ sincerely,
             print('Server running at PID: {}').format(self.http_server_pid)
 
             return self.http_server_pid
+            print('Hit CTRL-C to stop serving')
 
     def smtp_connection(self):
         recipients = self.read_file(self.recipients_file)
