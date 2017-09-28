@@ -317,7 +317,7 @@ exploit -j -z')
         try:
             status = smtpserver.noop()[0]
             print("SMTP Server Status: ",status)
-            send_prompt = yes_no("Connection successful, send mail now? (y/n): ")
+            send_prompt = self.yes_no("Connection successful, send mail now? (y/n): ")
 
             if send_prompt is True:
                 #from addr, to addr, msg
