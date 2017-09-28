@@ -305,7 +305,10 @@ sincerely,
             return self.http_server_pid
 
     def smtp_connection(self):
-        recipients = self.read_file(self.recipients_file)
+        recipient_list = self.read_file(self.recipients_file)
+        recipients = ",".join(recipient_list)
+        
+
         msg_body = self.craft_message_body()
 
         smtpserver = smtplib.SMTP(self.smtp_server, self.smtp_port)
@@ -334,8 +337,6 @@ sincerely,
 
         except Exception as e:
             print('Error: {}'.format(e))
-
-
 
 def main():
 
