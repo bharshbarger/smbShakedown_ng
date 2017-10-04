@@ -1,30 +1,22 @@
 #!/usr/bin/env python
-'''Heavily modified Smbshakedown
-Original by Nick Sanzotta:
-https://github.com/NickSanzotta/smbShakedown'''
-try:
-    #need to review these
-    import SimpleHTTPServer
-    from SimpleHTTPServer import SimpleHTTPRequesthttp_handler
-
-    import argparse
-    import getpass
-    import json
-    import multiprocessing
-    import os
-    import readline
-    import smtplib
-    import socket
-    import SocketServer
-    import StringIO
-    import subprocess
-    import sys
-    import time
-    import readline
-    import requests
-    import signal
-except Exception as e:
-    print(str(e))
+import SimpleHTTPServer
+from SimpleHTTPServer import SimpleHTTPRequestHandler
+import argparse
+import getpass
+import json
+import multiprocessing
+import os
+import readline
+import smtplib
+import socket
+import SocketServer
+import StringIO
+import subprocess
+import sys
+import time
+import readline
+import requests
+import signal
 
 class Smbshakedown(object):
     '''Smbshakedown class object'''
@@ -277,7 +269,7 @@ sincerely,
             addr = ("0.0.0.0", self.image_server_port)
             
             #starts simplehttpserver as http_handler
-            http_handler = SimpleHTTPServer.SimpleHTTPRequesthttp_handler
+            http_handler = SimpleHTTPServer.SimpleHTTPRequestHandler
             #starts httpd as socked server
             httpd = SocketServer.TCPServer((addr), http_handler, bind_and_activate=False)
             httpd.allow_reuse_address = True
